@@ -14,11 +14,12 @@ import {HLConstants} from "./common/HLConstants.sol";
  *  - Non-reverting (e.g. `tryPosition`): returns `(result, bool success)`. On
  *    failure `result` is zero-initialized.
  *
- * @dev Precompile gas cost formula: 2000 + 65 * (input_len + output_len). Reference
- *  caps (~20% above formula) are exposed via `HLConstants.*_GAS` so callers can
- *  bound precompile gas in their own wrappers if desired; this library forwards
- *  all available gas so it composes with simulator-backed tests that emulate
- *  precompiles in Solidity.
+ * @dev Precompile gas cost formula: 2000 + 65 * (input_len + output_len). Each
+ *  fixed-output reader caps its staticcall at the matching `HLConstants.*_GAS`
+ *  constant (~20% above the formula) to prevent runaway gas burn when a precompile
+ *  reverts or is unavailable. Dynamic-output readers (`delegations`, `perpAssetInfo`,
+ *  `spotInfo`, `tokenInfo`, `tokenSupply`) forward all available gas because their
+ *  return size depends on chain state and cannot be bounded statically.
  */
 library PrecompileLib {
     // Onchain record of token indices for each linked evm contract
@@ -217,7 +218,7 @@ library PrecompileLib {
     /// @notice Non-reverting version of `position2`. Returns success=false on precompile failure.
     function tryPosition2(address user, uint32 perp) internal view returns (Position memory result, bool success) {
         (bool _success, bytes memory _result) =
-            HLConstants.POSITION2_PRECOMPILE_ADDRESS.staticcall(abi.encode(user, perp));
+            HLConstants.POSITION2_PRECOMPILE_ADDRESS.staticcall{gas: HLConstants.POSITION_GAS}(abi.encode(user, perp));
         if (!_success) return (result, false);
         return (abi.decode(_result, (Position)), true);
     }
@@ -241,7 +242,7 @@ library PrecompileLib {
     /// @notice Non-reverting version of `positionLegacy`.
     function tryPositionLegacy(address user, uint16 perp) internal view returns (Position memory result, bool success) {
         (bool _success, bytes memory _result) =
-            HLConstants.POSITION_PRECOMPILE_ADDRESS.staticcall(abi.encode(user, perp));
+            HLConstants.POSITION_PRECOMPILE_ADDRESS.staticcall{gas: HLConstants.POSITION_GAS}(abi.encode(user, perp));
         if (!_success) return (result, false);
         return (abi.decode(_result, (Position)), true);
     }
@@ -274,7 +275,9 @@ library PrecompileLib {
         returns (SpotBalance memory result, bool success)
     {
         (bool _success, bytes memory _result) = HLConstants.SPOT_BALANCE_PRECOMPILE_ADDRESS
-            .staticcall(abi.encode(user, token));
+        .staticcall{gas: HLConstants.SPOT_BALANCE_GAS}(
+            abi.encode(user, token)
+        );
         if (!_success) return (result, false);
         return (abi.decode(_result, (SpotBalance)), true);
     }
@@ -303,8 +306,10 @@ library PrecompileLib {
         view
         returns (UserVaultEquity memory result, bool success)
     {
-        (bool _success, bytes memory _result) =
-            HLConstants.VAULT_EQUITY_PRECOMPILE_ADDRESS.staticcall(abi.encode(user, vault));
+        (bool _success, bytes memory _result) = HLConstants.VAULT_EQUITY_PRECOMPILE_ADDRESS
+        .staticcall{gas: HLConstants.VAULT_EQUITY_GAS}(
+            abi.encode(user, vault)
+        );
         if (!_success) return (result, false);
         return (abi.decode(_result, (UserVaultEquity)), true);
     }
@@ -326,7 +331,8 @@ library PrecompileLib {
 
     /// @notice Non-reverting version of `withdrawable`. Returns 0 on failure.
     function tryWithdrawable(address user) internal view returns (uint64 result, bool success) {
-        (bool _success, bytes memory _result) = HLConstants.WITHDRAWABLE_PRECOMPILE_ADDRESS.staticcall(abi.encode(user));
+        (bool _success, bytes memory _result) =
+            HLConstants.WITHDRAWABLE_PRECOMPILE_ADDRESS.staticcall{gas: HLConstants.WITHDRAWABLE_GAS}(abi.encode(user));
         if (!_success) return (0, false);
         return (abi.decode(_result, (Withdrawable)).withdrawable, true);
     }
@@ -377,8 +383,10 @@ library PrecompileLib {
 
     /// @notice Non-reverting version of `delegatorSummary`. Returns zero-initialized struct on failure.
     function tryDelegatorSummary(address user) internal view returns (DelegatorSummary memory result, bool success) {
-        (bool _success, bytes memory _result) =
-            HLConstants.DELEGATOR_SUMMARY_PRECOMPILE_ADDRESS.staticcall(abi.encode(user));
+        (bool _success, bytes memory _result) = HLConstants.DELEGATOR_SUMMARY_PRECOMPILE_ADDRESS
+        .staticcall{gas: HLConstants.DELEGATOR_SUMMARY_GAS}(
+            abi.encode(user)
+        );
         if (!_success) return (result, false);
         return (abi.decode(_result, (DelegatorSummary)), true);
     }
@@ -399,7 +407,8 @@ library PrecompileLib {
 
     /// @notice Non-reverting version of `markPx`. Returns 0 on failure.
     function tryMarkPx(uint32 perpIndex) internal view returns (uint64 result, bool success) {
-        (bool _success, bytes memory _result) = HLConstants.MARK_PX_PRECOMPILE_ADDRESS.staticcall(abi.encode(perpIndex));
+        (bool _success, bytes memory _result) =
+            HLConstants.MARK_PX_PRECOMPILE_ADDRESS.staticcall{gas: HLConstants.MARK_PX_GAS}(abi.encode(perpIndex));
         if (!_success) return (0, false);
         return (abi.decode(_result, (uint64)), true);
     }
@@ -421,7 +430,7 @@ library PrecompileLib {
     /// @notice Non-reverting version of `oraclePx`. Returns 0 on failure.
     function tryOraclePx(uint32 perpIndex) internal view returns (uint64 result, bool success) {
         (bool _success, bytes memory _result) =
-            HLConstants.ORACLE_PX_PRECOMPILE_ADDRESS.staticcall(abi.encode(perpIndex));
+            HLConstants.ORACLE_PX_PRECOMPILE_ADDRESS.staticcall{gas: HLConstants.ORACLE_PX_GAS}(abi.encode(perpIndex));
         if (!_success) return (0, false);
         return (abi.decode(_result, (uint64)), true);
     }
@@ -443,7 +452,8 @@ library PrecompileLib {
 
     /// @notice Non-reverting version of `spotPx`. Returns 0 on failure.
     function trySpotPx(uint64 spotIndex) internal view returns (uint64 result, bool success) {
-        (bool _success, bytes memory _result) = HLConstants.SPOT_PX_PRECOMPILE_ADDRESS.staticcall(abi.encode(spotIndex));
+        (bool _success, bytes memory _result) =
+            HLConstants.SPOT_PX_PRECOMPILE_ADDRESS.staticcall{gas: HLConstants.SPOT_PX_GAS}(abi.encode(spotIndex));
         if (!_success) return (0, false);
         return (abi.decode(_result, (uint64)), true);
     }
@@ -567,7 +577,8 @@ library PrecompileLib {
 
     /// @notice Non-reverting version of `l1BlockNumber`. Returns 0 on failure.
     function tryL1BlockNumber() internal view returns (uint64 result, bool success) {
-        (bool _success, bytes memory _result) = HLConstants.L1_BLOCK_NUMBER_PRECOMPILE_ADDRESS.staticcall("");
+        (bool _success, bytes memory _result) =
+            HLConstants.L1_BLOCK_NUMBER_PRECOMPILE_ADDRESS.staticcall{gas: HLConstants.L1_BLOCK_NUMBER_GAS}("");
         if (!_success) return (0, false);
         return (abi.decode(_result, (uint64)), true);
     }
@@ -589,7 +600,8 @@ library PrecompileLib {
 
     /// @notice Non-reverting version of `bbo`. Returns zero-initialized struct on failure.
     function tryBbo(uint64 asset) internal view returns (Bbo memory result, bool success) {
-        (bool _success, bytes memory _result) = HLConstants.BBO_PRECOMPILE_ADDRESS.staticcall(abi.encode(asset));
+        (bool _success, bytes memory _result) =
+            HLConstants.BBO_PRECOMPILE_ADDRESS.staticcall{gas: HLConstants.BBO_GAS}(abi.encode(asset));
         if (!_success) return (result, false);
         return (abi.decode(_result, (Bbo)), true);
     }
@@ -625,8 +637,10 @@ library PrecompileLib {
         view
         returns (AccountMarginSummary memory result, bool success)
     {
-        (bool _success, bytes memory _result) =
-            HLConstants.ACCOUNT_MARGIN_SUMMARY_PRECOMPILE_ADDRESS.staticcall(abi.encode(perpDexIndex, user));
+        (bool _success, bytes memory _result) = HLConstants.ACCOUNT_MARGIN_SUMMARY_PRECOMPILE_ADDRESS
+        .staticcall{gas: HLConstants.ACCOUNT_MARGIN_SUMMARY_GAS}(
+            abi.encode(perpDexIndex, user)
+        );
         if (!_success) return (result, false);
         return (abi.decode(_result, (AccountMarginSummary)), true);
     }
@@ -649,8 +663,10 @@ library PrecompileLib {
 
     /// @notice Non-reverting version of `coreUserExists`. Returns (false, false) on failure.
     function tryCoreUserExists(address user) internal view returns (bool exists, bool success) {
-        (bool _success, bytes memory _result) =
-            HLConstants.CORE_USER_EXISTS_PRECOMPILE_ADDRESS.staticcall(abi.encode(user));
+        (bool _success, bytes memory _result) = HLConstants.CORE_USER_EXISTS_PRECOMPILE_ADDRESS
+        .staticcall{gas: HLConstants.CORE_USER_EXISTS_GAS}(
+            abi.encode(user)
+        );
         if (!_success) return (false, false);
         return (abi.decode(_result, (CoreUserExists)).exists, true);
     }
@@ -680,8 +696,10 @@ library PrecompileLib {
         view
         returns (BorrowLendUserTokenState memory result, bool success)
     {
-        (bool _success, bytes memory _result) =
-            HLConstants.BORROW_LEND_USER_STATE_PRECOMPILE_ADDRESS.staticcall(abi.encode(user, token));
+        (bool _success, bytes memory _result) = HLConstants.BORROW_LEND_USER_STATE_PRECOMPILE_ADDRESS
+        .staticcall{gas: HLConstants.BORROW_LEND_USER_STATE_GAS}(
+            abi.encode(user, token)
+        );
         if (!_success) return (result, false);
         return (abi.decode(_result, (BorrowLendUserTokenState)), true);
     }
@@ -711,8 +729,10 @@ library PrecompileLib {
         view
         returns (BorrowLendReserveState memory result, bool success)
     {
-        (bool _success, bytes memory _result) =
-            HLConstants.BORROW_LEND_RESERVE_STATE_PRECOMPILE_ADDRESS.staticcall(abi.encode(token));
+        (bool _success, bytes memory _result) = HLConstants.BORROW_LEND_RESERVE_STATE_PRECOMPILE_ADDRESS
+        .staticcall{gas: HLConstants.BORROW_LEND_RESERVE_STATE_GAS}(
+            abi.encode(token)
+        );
         if (!_success) return (result, false);
         return (abi.decode(_result, (BorrowLendReserveState)), true);
     }
