@@ -601,6 +601,17 @@ contract PrecompileLibUnitTest is Test {
         assertEq(result.maxLeverage, expected.maxLeverage);
     }
 
+    function test_tryPerpAssetInfo_fail() public {
+        uint32 perp = 1;
+        bytes memory cd = abi.encode(perp);
+        _setupFailingPrecompile(HLConstants.PERP_ASSET_INFO_PRECOMPILE_ADDRESS, cd);
+
+        (PrecompileLib.PerpAssetInfo memory result, bool success) = PrecompileLib.tryPerpAssetInfo(perp);
+        assertFalse(success);
+        assertEq(bytes(result.coin).length, 0);
+        assertEq(result.maxLeverage, 0);
+    }
+
     function callPerpAssetInfo(uint32 perp) external view {
         PrecompileLib.perpAssetInfo(perp);
     }
@@ -644,6 +655,18 @@ contract PrecompileLibUnitTest is Test {
         assertTrue(success);
         assertEq(keccak256(bytes(result.name)), keccak256(bytes(expected.name)));
         assertEq(result.tokens[0], expected.tokens[0]);
+    }
+
+    function test_trySpotInfo_fail() public {
+        uint64 spot = 1;
+        bytes memory cd = abi.encode(spot);
+        _setupFailingPrecompile(HLConstants.SPOT_INFO_PRECOMPILE_ADDRESS, cd);
+
+        (PrecompileLib.SpotInfo memory result, bool success) = PrecompileLib.trySpotInfo(spot);
+        assertFalse(success);
+        assertEq(bytes(result.name).length, 0);
+        assertEq(result.tokens[0], 0);
+        assertEq(result.tokens[1], 0);
     }
 
     function callSpotInfo(uint64 spot) external view {
@@ -718,6 +741,18 @@ contract PrecompileLibUnitTest is Test {
         assertEq(result.spots.length, 2);
     }
 
+    function test_tryTokenInfo_fail() public {
+        uint64 token = 1;
+        bytes memory cd = abi.encode(token);
+        _setupFailingPrecompile(HLConstants.TOKEN_INFO_PRECOMPILE_ADDRESS, cd);
+
+        (PrecompileLib.TokenInfo memory result, bool success) = PrecompileLib.tryTokenInfo(token);
+        assertFalse(success);
+        assertEq(bytes(result.name).length, 0);
+        assertEq(result.spots.length, 0);
+        assertEq(result.deployer, address(0));
+    }
+
     function callTokenInfo(uint64 token) external view {
         PrecompileLib.tokenInfo(token);
     }
@@ -779,6 +814,18 @@ contract PrecompileLibUnitTest is Test {
         assertTrue(success);
         assertEq(result.maxSupply, expected.maxSupply);
         assertEq(result.nonCirculatingUserBalances.length, 1);
+    }
+
+    function test_tryTokenSupply_fail() public {
+        uint64 token = 1;
+        bytes memory cd = abi.encode(token);
+        _setupFailingPrecompile(HLConstants.TOKEN_SUPPLY_PRECOMPILE_ADDRESS, cd);
+
+        (PrecompileLib.TokenSupply memory result, bool success) = PrecompileLib.tryTokenSupply(token);
+        assertFalse(success);
+        assertEq(result.maxSupply, 0);
+        assertEq(result.totalSupply, 0);
+        assertEq(result.nonCirculatingUserBalances.length, 0);
     }
 
     function callTokenSupply(uint64 token) external view {
