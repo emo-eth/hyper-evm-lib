@@ -182,7 +182,6 @@ contract UpstreamFeaturesTest is Test {
         bytes memory encoded =
             CoreWriterLib.encodeLimitOrder(0, true, 100, 5, false, HLConstants.LIMIT_ORDER_TIF_GTC, 0);
         bytes memory expected = abi.encodePacked(
-            uint8(1),
             HLConstants.LIMIT_ORDER_ACTION,
             abi.encode(uint32(0), true, uint64(100), uint64(5), false, HLConstants.LIMIT_ORDER_TIF_GTC, uint128(0))
         );
@@ -192,23 +191,21 @@ contract UpstreamFeaturesTest is Test {
 
     function test_encodeSpotSend_format() public pure {
         bytes memory encoded = CoreWriterLib.encodeSpotSend(address(0x1234), 150, 1e8);
-        bytes memory expected = abi.encodePacked(
-            uint8(1), HLConstants.SPOT_SEND_ACTION, abi.encode(address(0x1234), uint64(150), uint64(1e8))
-        );
+        bytes memory expected =
+            abi.encodePacked(HLConstants.SPOT_SEND_ACTION, abi.encode(address(0x1234), uint64(150), uint64(1e8)));
         assertEq(encoded, expected);
     }
 
     function test_encodeStakingDeposit_format() public pure {
         bytes memory encoded = CoreWriterLib.encodeStakingDeposit(1e8);
-        bytes memory expected = abi.encodePacked(uint8(1), HLConstants.STAKING_DEPOSIT_ACTION, abi.encode(uint64(1e8)));
+        bytes memory expected = abi.encodePacked(HLConstants.STAKING_DEPOSIT_ACTION, abi.encode(uint64(1e8)));
         assertEq(encoded, expected);
     }
 
     function test_encodeReflectEvmSupplyChange_format() public pure {
         bytes memory encoded = CoreWriterLib.encodeReflectEvmSupplyChange(150, 1e8, true);
-        bytes memory expected = abi.encodePacked(
-            uint8(1), HLConstants.REFLECT_EVM_SUPPLY_CHANGE_ACTION, abi.encode(uint64(150), uint64(1e8), true)
-        );
+        bytes memory expected =
+            abi.encodePacked(HLConstants.REFLECT_EVM_SUPPLY_CHANGE_ACTION, abi.encode(uint64(150), uint64(1e8), true));
         assertEq(encoded, expected);
         // Action ID byte 3 must be 0x0e (14)
         assertEq(uint8(encoded[3]), 0x0e);
@@ -219,7 +216,6 @@ contract UpstreamFeaturesTest is Test {
             address(0x1234), address(0), HLConstants.SPOT_DEX, HLConstants.SPOT_DEX, 150, 1e8
         );
         bytes memory expected = abi.encodePacked(
-            uint8(1),
             HLConstants.SEND_ASSET_ACTION,
             abi.encode(
                 address(0x1234), address(0), HLConstants.SPOT_DEX, HLConstants.SPOT_DEX, uint64(150), uint64(1e8)
@@ -231,7 +227,7 @@ contract UpstreamFeaturesTest is Test {
     function test_encodeBorrowLend_format() public pure {
         bytes memory encoded = CoreWriterLib.encodeBorrowLend(HLConstants.BLP_SUPPLY, 150, 1e8);
         bytes memory expected = abi.encodePacked(
-            uint8(1), HLConstants.BORROW_LEND_ACTION, abi.encode(HLConstants.BLP_SUPPLY, uint64(150), uint64(1e8))
+            HLConstants.BORROW_LEND_OPERATION_ACTION, abi.encode(HLConstants.BLP_SUPPLY, uint64(150), uint64(1e8))
         );
         assertEq(encoded, expected);
     }

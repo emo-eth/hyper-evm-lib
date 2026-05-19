@@ -35,13 +35,14 @@ import {ICoreDepositWallet} from "./interfaces/ICoreDepositWallet.sol";
  *    precision (per-token `szDecimals` for sizes, `pxDecimals` for prices). Use
  *    `HLConversions` to translate between EVM (18-dec) and Core (token-defined) values.
  *
+ *
  * @dev Fees & costs:
  *  - Trading actions (limit order, cancel) incur the standard Hyperliquid taker/maker fees
  *    on fill — no separate EVM-side cost beyond the CoreWriter call.
- *  - `sendAsset` / `bridgeToEvm` for NON-HYPE tokens deduct a small HYPE-denominated fee
- *    from the SENDER's Core spot balance to cover EVM-side gas for the system-address
- *    transfer. Sender must hold sufficient HYPE on Core or the action is rejected.
- *  - `spotSend` between Core accounts is currently free (subject to upstream changes).
+ *  - Cross-context transfers (`sendAsset` to a system address, `bridgeToEvm`) may incur
+ *    Core-side fees to cover EVM execution; consult current Hyperliquid docs for exact
+ *    semantics per token. Sender must hold sufficient HYPE/balance on Core or the action
+ *    is rejected.
  *
  * @dev Additional functionality:
  *  - Bridging assets between EVM and HyperCore (`bridgeToCore`, `bridgeToEvm`)
@@ -223,7 +224,7 @@ library CoreWriterLib {
         uint128 cloid
     ) internal pure returns (bytes memory) {
         return abi.encodeWithSelector(
-            HLConstants.LIMIT_ORDER_SELECTOR, asset, isBuy, limitPx, sz, reduceOnly, encodedTif, cloid
+            HLConstants.LIMIT_ORDER_ACTION, asset, isBuy, limitPx, sz, reduceOnly, encodedTif, cloid
         );
     }
 
@@ -236,7 +237,7 @@ library CoreWriterLib {
      *  the `vaultTransfer` helper enforces this on EVM before submitting.
      */
     function encodeVaultTransfer(address vault, bool isDeposit, uint64 usdAmount) internal pure returns (bytes memory) {
-        return abi.encodeWithSelector(HLConstants.VAULT_TRANSFER_SELECTOR, vault, isDeposit, usdAmount);
+        return abi.encodeWithSelector(HLConstants.VAULT_TRANSFER_ACTION, vault, isDeposit, usdAmount);
     }
 
     /**
@@ -252,7 +253,7 @@ library CoreWriterLib {
         pure
         returns (bytes memory)
     {
-        return abi.encodeWithSelector(HLConstants.TOKEN_DELEGATE_SELECTOR, validator, amountWei, undelegate);
+        return abi.encodeWithSelector(HLConstants.TOKEN_DELEGATE_ACTION, validator, amountWei, undelegate);
     }
 
     /**
@@ -260,7 +261,7 @@ library CoreWriterLib {
      * @param amountWei HYPE amount in 8-dec Core units.
      */
     function encodeStakingDeposit(uint64 amountWei) internal pure returns (bytes memory) {
-        return abi.encodeWithSelector(HLConstants.STAKING_DEPOSIT_SELECTOR, amountWei);
+        return abi.encodeWithSelector(HLConstants.STAKING_DEPOSIT_ACTION, amountWei);
     }
 
     /**
@@ -269,7 +270,7 @@ library CoreWriterLib {
      * @dev Requires prior undelegation; subject to a ~7 day unbonding period after undelegate.
      */
     function encodeStakingWithdraw(uint64 amountWei) internal pure returns (bytes memory) {
-        return abi.encodeWithSelector(HLConstants.STAKING_WITHDRAW_SELECTOR, amountWei);
+        return abi.encodeWithSelector(HLConstants.STAKING_WITHDRAW_ACTION, amountWei);
     }
 
     /**
@@ -277,11 +278,12 @@ library CoreWriterLib {
      * @param to Recipient address (must differ from the sending account).
      * @param token Core token index.
      * @param amountWei Amount in the token's Core precision.
-     * @dev Currently free; sends from the caller's spot account. The `spotSend` helper
-     *  rejects self-transfers (Core would reject them anyway).
+     * @dev Sends from the caller's spot account. The `spotSend` helper rejects
+     *  self-transfers (Core would reject them anyway). Refer to current Hyperliquid docs
+     *  for any fee schedule.
      */
     function encodeSpotSend(address to, uint64 token, uint64 amountWei) internal pure returns (bytes memory) {
-        return abi.encodeWithSelector(HLConstants.SPOT_SEND_SELECTOR, to, token, amountWei);
+        return abi.encodeWithSelector(HLConstants.SPOT_SEND_ACTION, to, token, amountWei);
     }
 
     /**
@@ -292,7 +294,7 @@ library CoreWriterLib {
      *  the action if the withdrawal would put the perp account below margin.
      */
     function encodeUsdClassTransfer(uint64 ntl, bool toPerp) internal pure returns (bytes memory) {
-        return abi.encodeWithSelector(HLConstants.USD_CLASS_TRANSFER_SELECTOR, ntl, toPerp);
+        return abi.encodeWithSelector(HLConstants.USD_CLASS_TRANSFER_ACTION, ntl, toPerp);
     }
 
     /**
@@ -308,7 +310,7 @@ library CoreWriterLib {
         pure
         returns (bytes memory)
     {
-        return abi.encodeWithSelector(HLConstants.FINALIZE_EVM_CONTRACT_SELECTOR, token, encodedVariant, createNonce);
+        return abi.encodeWithSelector(HLConstants.FINALIZE_EVM_CONTRACT_ACTION, token, encodedVariant, createNonce);
     }
 
     /**
@@ -317,7 +319,7 @@ library CoreWriterLib {
      * @param name Optional human-readable name. Empty string registers the main/default agent.
      */
     function encodeAddApiWallet(address wallet, string memory name) internal pure returns (bytes memory) {
-        return abi.encodeWithSelector(HLConstants.ADD_API_WALLET_SELECTOR, wallet, name);
+        return abi.encodeWithSelector(HLConstants.ADD_API_WALLET_ACTION, wallet, name);
     }
 
     /**
@@ -328,7 +330,7 @@ library CoreWriterLib {
      *  Partially-filled orders are cancelled for the remaining size only.
      */
     function encodeCancelOrderByOid(uint32 asset, uint64 orderId) internal pure returns (bytes memory) {
-        return abi.encodeWithSelector(HLConstants.CANCEL_ORDER_BY_OID_SELECTOR, asset, orderId);
+        return abi.encodeWithSelector(HLConstants.CANCEL_ORDER_BY_OID_ACTION, asset, orderId);
     }
 
     /**
@@ -337,7 +339,7 @@ library CoreWriterLib {
      * @param cloid Client order ID supplied at placement.
      */
     function encodeCancelOrderByCloid(uint32 asset, uint128 cloid) internal pure returns (bytes memory) {
-        return abi.encodeWithSelector(HLConstants.CANCEL_ORDER_BY_CLOID_SELECTOR, asset, cloid);
+        return abi.encodeWithSelector(HLConstants.CANCEL_ORDER_BY_CLOID_ACTION, asset, cloid);
     }
 
     /**
@@ -347,7 +349,7 @@ library CoreWriterLib {
      * @param builder Builder address being authorized.
      */
     function encodeApproveBuilderFee(uint64 maxFeeRate, address builder) internal pure returns (bytes memory) {
-        return abi.encodeWithSelector(HLConstants.APPROVE_BUILDER_FEE_SELECTOR, maxFeeRate, builder);
+        return abi.encodeWithSelector(HLConstants.APPROVE_BUILDER_FEE_ACTION, maxFeeRate, builder);
     }
 
     /**
@@ -377,7 +379,7 @@ library CoreWriterLib {
         uint64 amountWei
     ) internal pure returns (bytes memory) {
         return abi.encodeWithSelector(
-            HLConstants.SEND_ASSET_SELECTOR, destination, subAccount, source_dex, destination_dex, token, amountWei
+            HLConstants.SEND_ASSET_ACTION, destination, subAccount, source_dex, destination_dex, token, amountWei
         );
     }
 
@@ -394,7 +396,7 @@ library CoreWriterLib {
         pure
         returns (bytes memory)
     {
-        return abi.encodeWithSelector(HLConstants.REFLECT_EVM_SUPPLY_CHANGE_SELECTOR, token, amount, isMint);
+        return abi.encodeWithSelector(HLConstants.REFLECT_EVM_SUPPLY_CHANGE_ACTION, token, amount, isMint);
     }
 
     /**
@@ -403,14 +405,13 @@ library CoreWriterLib {
      * @param token Core token index.
      * @param amountWei Amount in the token's Core precision. Pass 0 to apply maximally
      *  (e.g. withdraw the caller's full supplied balance).
-     * @dev Testnet-only at the time of writing.
      */
     function encodeBorrowLend(uint8 encodedOperation, uint64 token, uint64 amountWei)
         internal
         pure
         returns (bytes memory)
     {
-        return abi.encodeWithSelector(HLConstants.BORROW_LEND_SELECTOR, encodedOperation, token, amountWei);
+        return abi.encodeWithSelector(HLConstants.BORROW_LEND_OPERATION_ACTION, encodedOperation, token, amountWei);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -525,8 +526,8 @@ library CoreWriterLib {
 
     /**
      * @notice Sends a spot asset from the caller's Core spot account to another address.
-     * @dev Currently free on Core. Reverts on EVM if `to == address(this)` since Core would
-     *  reject self-transfers anyway.
+     * @dev Reverts on EVM if `to == address(this)` since Core would reject self-transfers
+     *  anyway.
      */
     function spotSend(address to, uint64 token, uint64 amountWei) internal {
         if (to == address(this)) revert CoreWriterLib__CannotSelfTransfer();
@@ -560,7 +561,6 @@ library CoreWriterLib {
      * @param token Core token index.
      * @param amountWei Amount in the token's Core precision; 0 applies the operation
      *  maximally (e.g. withdraw full supplied balance).
-     * @dev Testnet-only at the time of writing.
      */
     function borrowLend(uint8 encodedOperation, uint64 token, uint64 amountWei) internal {
         coreWriter.sendRawAction(encodeBorrowLend(encodedOperation, token, amountWei));

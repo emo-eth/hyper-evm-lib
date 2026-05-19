@@ -75,44 +75,25 @@ library HLConstants {
                         CoreWriter Actions
     //////////////////////////////////////////////////////////////*/
 
-    // 3-byte action IDs. Used by the simulator to dispatch raw action bytes.
-    uint24 constant LIMIT_ORDER_ACTION = 1;
-    uint24 constant VAULT_TRANSFER_ACTION = 2;
-
-    uint24 constant TOKEN_DELEGATE_ACTION = 3;
-    uint24 constant STAKING_DEPOSIT_ACTION = 4;
-    uint24 constant STAKING_WITHDRAW_ACTION = 5;
-
-    uint24 constant SPOT_SEND_ACTION = 6;
-    uint24 constant USD_CLASS_TRANSFER_ACTION = 7;
-
-    uint24 constant FINALIZE_EVM_CONTRACT_ACTION = 8;
-    uint24 constant ADD_API_WALLET_ACTION = 9;
-    uint24 constant CANCEL_ORDER_BY_OID_ACTION = 10;
-    uint24 constant CANCEL_ORDER_BY_CLOID_ACTION = 11;
-    uint24 constant APPROVE_BUILDER_FEE_ACTION = 12;
-    uint24 constant SEND_ASSET_ACTION = 13;
-    uint24 constant REFLECT_EVM_SUPPLY_CHANGE_ACTION = 14;
-    uint24 constant BORROW_LEND_ACTION = 15;
-
-    // 4-byte action selectors (version byte 0x01 ++ 3-byte action ID). Passing one of these
-    // to `abi.encodeWithSelector(selector, args...)` produces the exact CoreWriter wire format
-    // (version byte ++ action ID ++ abi-encoded args) in a single allocation.
-    bytes4 constant LIMIT_ORDER_SELECTOR = 0x01000001;
-    bytes4 constant VAULT_TRANSFER_SELECTOR = 0x01000002;
-    bytes4 constant TOKEN_DELEGATE_SELECTOR = 0x01000003;
-    bytes4 constant STAKING_DEPOSIT_SELECTOR = 0x01000004;
-    bytes4 constant STAKING_WITHDRAW_SELECTOR = 0x01000005;
-    bytes4 constant SPOT_SEND_SELECTOR = 0x01000006;
-    bytes4 constant USD_CLASS_TRANSFER_SELECTOR = 0x01000007;
-    bytes4 constant FINALIZE_EVM_CONTRACT_SELECTOR = 0x01000008;
-    bytes4 constant ADD_API_WALLET_SELECTOR = 0x01000009;
-    bytes4 constant CANCEL_ORDER_BY_OID_SELECTOR = 0x0100000a;
-    bytes4 constant CANCEL_ORDER_BY_CLOID_SELECTOR = 0x0100000b;
-    bytes4 constant APPROVE_BUILDER_FEE_SELECTOR = 0x0100000c;
-    bytes4 constant SEND_ASSET_SELECTOR = 0x0100000d;
-    bytes4 constant REFLECT_EVM_SUPPLY_CHANGE_SELECTOR = 0x0100000e;
-    bytes4 constant BORROW_LEND_SELECTOR = 0x0100000f;
+    // 4-byte action selectors: version byte 0x01 ++ 3-byte action ID. Passing one of these to
+    // `abi.encodeWithSelector(action, args...)` produces the exact CoreWriter wire format
+    // (version byte ++ action ID ++ abi-encoded args) in a single allocation. The simulator
+    // also matches against these to dispatch raw action bytes.
+    bytes4 constant LIMIT_ORDER_ACTION = 0x01000001;
+    bytes4 constant VAULT_TRANSFER_ACTION = 0x01000002;
+    bytes4 constant TOKEN_DELEGATE_ACTION = 0x01000003;
+    bytes4 constant STAKING_DEPOSIT_ACTION = 0x01000004;
+    bytes4 constant STAKING_WITHDRAW_ACTION = 0x01000005;
+    bytes4 constant SPOT_SEND_ACTION = 0x01000006;
+    bytes4 constant USD_CLASS_TRANSFER_ACTION = 0x01000007;
+    bytes4 constant FINALIZE_EVM_CONTRACT_ACTION = 0x01000008;
+    bytes4 constant ADD_API_WALLET_ACTION = 0x01000009;
+    bytes4 constant CANCEL_ORDER_BY_OID_ACTION = 0x0100000a;
+    bytes4 constant CANCEL_ORDER_BY_CLOID_ACTION = 0x0100000b;
+    bytes4 constant APPROVE_BUILDER_FEE_ACTION = 0x0100000c;
+    bytes4 constant SEND_ASSET_ACTION = 0x0100000d;
+    bytes4 constant REFLECT_EVM_SUPPLY_CHANGE_ACTION = 0x0100000e;
+    bytes4 constant BORROW_LEND_OPERATION_ACTION = 0x0100000f;
 
     /*//////////////////////////////////////////////////////////////
                         Precompile Gas Caps
