@@ -1099,4 +1099,244 @@ contract PrecompileLibUnitTest is Test {
     function callBorrowLendReserveState(uint64 token) external view {
         PrecompileLib.borrowLendReserveState(token);
     }
+
+    /*//////////////////////////////////////////////////////////////
+              Gas-param overloads (uncapped dynamic-output readers)
+    //////////////////////////////////////////////////////////////*/
+
+    function test_tryDelegations_withGas_success() public {
+        address user = makeAddr("user");
+        PrecompileLib.Delegation[] memory expected = new PrecompileLib.Delegation[](1);
+        expected[0] = PrecompileLib.Delegation({
+            validator: makeAddr("validator1"), amount: 1000, lockedUntilTimestamp: 1_234_567_890
+        });
+
+        bytes memory cd = abi.encode(user);
+        _setupMockPrecompile(HLConstants.DELEGATIONS_PRECOMPILE_ADDRESS, cd, abi.encode(expected));
+
+        (PrecompileLib.Delegation[] memory result, bool success) = PrecompileLib.tryDelegations(user, 50_000);
+        assertTrue(success);
+        assertEq(result.length, 1);
+        assertEq(result[0].validator, expected[0].validator);
+    }
+
+    function test_tryDelegations_withGas_fail() public {
+        address user = makeAddr("user");
+        bytes memory cd = abi.encode(user);
+        _setupFailingPrecompile(HLConstants.DELEGATIONS_PRECOMPILE_ADDRESS, cd);
+
+        (PrecompileLib.Delegation[] memory result, bool success) = PrecompileLib.tryDelegations(user, 50_000);
+        assertFalse(success);
+        assertEq(result.length, 0);
+    }
+
+    function test_delegations_withGas() public {
+        address user = makeAddr("user");
+        PrecompileLib.Delegation[] memory expected = new PrecompileLib.Delegation[](1);
+        expected[0] = PrecompileLib.Delegation({
+            validator: makeAddr("validator1"), amount: 1000, lockedUntilTimestamp: 1_234_567_890
+        });
+
+        bytes memory cd = abi.encode(user);
+        _setupMockPrecompile(HLConstants.DELEGATIONS_PRECOMPILE_ADDRESS, cd, abi.encode(expected));
+
+        PrecompileLib.Delegation[] memory result = PrecompileLib.delegations(user, 50_000);
+        assertEq(result.length, 1);
+        assertEq(result[0].validator, expected[0].validator);
+    }
+
+    function test_delegations_withGas_Fail() public {
+        address user = makeAddr("user");
+        bytes memory cd = abi.encode(user);
+        _setupFailingPrecompile(HLConstants.DELEGATIONS_PRECOMPILE_ADDRESS, cd);
+
+        vm.expectRevert(PrecompileLib.PrecompileLib__DelegationsPrecompileFailed.selector);
+        this.callDelegationsWithGas(user, 50_000);
+    }
+
+    function callDelegationsWithGas(address user, uint256 gas) external view {
+        PrecompileLib.delegations(user, gas);
+    }
+
+    function test_tryPerpAssetInfo_withGas_success() public {
+        uint32 perp = 1;
+        PrecompileLib.PerpAssetInfo memory expected = PrecompileLib.PerpAssetInfo({
+            coin: "BTC", marginTableId: 1, szDecimals: 4, maxLeverage: 50, onlyIsolated: false
+        });
+
+        bytes memory cd = abi.encode(perp);
+        _setupMockPrecompile(HLConstants.PERP_ASSET_INFO_PRECOMPILE_ADDRESS, cd, abi.encode(expected));
+
+        (PrecompileLib.PerpAssetInfo memory result, bool success) = PrecompileLib.tryPerpAssetInfo(perp, 50_000);
+        assertTrue(success);
+        assertEq(result.coin, expected.coin);
+        assertEq(result.maxLeverage, expected.maxLeverage);
+    }
+
+    function test_tryPerpAssetInfo_withGas_fail() public {
+        uint32 perp = 1;
+        bytes memory cd = abi.encode(perp);
+        _setupFailingPrecompile(HLConstants.PERP_ASSET_INFO_PRECOMPILE_ADDRESS, cd);
+
+        (PrecompileLib.PerpAssetInfo memory result, bool success) = PrecompileLib.tryPerpAssetInfo(perp, 50_000);
+        assertFalse(success);
+        assertEq(result.maxLeverage, 0);
+        assertEq(bytes(result.coin).length, 0);
+    }
+
+    function test_perpAssetInfo_withGas() public {
+        uint32 perp = 1;
+        PrecompileLib.PerpAssetInfo memory expected = PrecompileLib.PerpAssetInfo({
+            coin: "BTC", marginTableId: 1, szDecimals: 4, maxLeverage: 50, onlyIsolated: false
+        });
+
+        bytes memory cd = abi.encode(perp);
+        _setupMockPrecompile(HLConstants.PERP_ASSET_INFO_PRECOMPILE_ADDRESS, cd, abi.encode(expected));
+
+        PrecompileLib.PerpAssetInfo memory result = PrecompileLib.perpAssetInfo(perp, 50_000);
+        assertEq(result.coin, expected.coin);
+    }
+
+    function test_trySpotInfo_withGas_success() public {
+        uint64 spot = 1;
+        uint64[2] memory tokens = [uint64(1), uint64(0)];
+        PrecompileLib.SpotInfo memory expected = PrecompileLib.SpotInfo({name: "BTC/USDC", tokens: tokens});
+
+        bytes memory cd = abi.encode(spot);
+        _setupMockPrecompile(HLConstants.SPOT_INFO_PRECOMPILE_ADDRESS, cd, abi.encode(expected));
+
+        (PrecompileLib.SpotInfo memory result, bool success) = PrecompileLib.trySpotInfo(spot, 50_000);
+        assertTrue(success);
+        assertEq(result.name, expected.name);
+        assertEq(result.tokens[0], expected.tokens[0]);
+    }
+
+    function test_trySpotInfo_withGas_fail() public {
+        uint64 spot = 1;
+        bytes memory cd = abi.encode(spot);
+        _setupFailingPrecompile(HLConstants.SPOT_INFO_PRECOMPILE_ADDRESS, cd);
+
+        (PrecompileLib.SpotInfo memory result, bool success) = PrecompileLib.trySpotInfo(spot, 50_000);
+        assertFalse(success);
+        assertEq(bytes(result.name).length, 0);
+    }
+
+    function test_spotInfo_withGas() public {
+        uint64 spot = 1;
+        uint64[2] memory tokens = [uint64(1), uint64(0)];
+        PrecompileLib.SpotInfo memory expected = PrecompileLib.SpotInfo({name: "BTC/USDC", tokens: tokens});
+
+        bytes memory cd = abi.encode(spot);
+        _setupMockPrecompile(HLConstants.SPOT_INFO_PRECOMPILE_ADDRESS, cd, abi.encode(expected));
+
+        PrecompileLib.SpotInfo memory result = PrecompileLib.spotInfo(spot, 50_000);
+        assertEq(result.name, expected.name);
+    }
+
+    function test_tryTokenInfo_withGas_success() public {
+        uint64 token = 1;
+        uint64[] memory spots = new uint64[](1);
+        spots[0] = 1;
+        PrecompileLib.TokenInfo memory expected = PrecompileLib.TokenInfo({
+            name: "BTC",
+            spots: spots,
+            deployerTradingFeeShare: 100,
+            deployer: makeAddr("deployer"),
+            evmContract: makeAddr("evmContract"),
+            szDecimals: 4,
+            weiDecimals: 8,
+            evmExtraWeiDecimals: 10
+        });
+
+        bytes memory cd = abi.encode(token);
+        _setupMockPrecompile(HLConstants.TOKEN_INFO_PRECOMPILE_ADDRESS, cd, abi.encode(expected));
+
+        (PrecompileLib.TokenInfo memory result, bool success) = PrecompileLib.tryTokenInfo(token, 50_000);
+        assertTrue(success);
+        assertEq(result.name, expected.name);
+        assertEq(result.evmContract, expected.evmContract);
+    }
+
+    function test_tryTokenInfo_withGas_fail() public {
+        uint64 token = 1;
+        bytes memory cd = abi.encode(token);
+        _setupFailingPrecompile(HLConstants.TOKEN_INFO_PRECOMPILE_ADDRESS, cd);
+
+        (PrecompileLib.TokenInfo memory result, bool success) = PrecompileLib.tryTokenInfo(token, 50_000);
+        assertFalse(success);
+        assertEq(result.evmContract, address(0));
+        assertEq(bytes(result.name).length, 0);
+    }
+
+    function test_tokenInfo_withGas() public {
+        uint64 token = 1;
+        uint64[] memory spots = new uint64[](1);
+        spots[0] = 1;
+        PrecompileLib.TokenInfo memory expected = PrecompileLib.TokenInfo({
+            name: "BTC",
+            spots: spots,
+            deployerTradingFeeShare: 100,
+            deployer: makeAddr("deployer"),
+            evmContract: makeAddr("evmContract"),
+            szDecimals: 4,
+            weiDecimals: 8,
+            evmExtraWeiDecimals: 10
+        });
+
+        bytes memory cd = abi.encode(token);
+        _setupMockPrecompile(HLConstants.TOKEN_INFO_PRECOMPILE_ADDRESS, cd, abi.encode(expected));
+
+        PrecompileLib.TokenInfo memory result = PrecompileLib.tokenInfo(token, 50_000);
+        assertEq(result.name, expected.name);
+    }
+
+    function test_tryTokenSupply_withGas_success() public {
+        uint64 token = 1;
+        PrecompileLib.UserBalance[] memory nonCirc = new PrecompileLib.UserBalance[](1);
+        nonCirc[0] = PrecompileLib.UserBalance({user: makeAddr("treasury"), balance: 500_000});
+        PrecompileLib.TokenSupply memory expected = PrecompileLib.TokenSupply({
+            maxSupply: 21_000_000,
+            totalSupply: 19_000_000,
+            circulatingSupply: 18_000_000,
+            futureEmissions: 2_000_000,
+            nonCirculatingUserBalances: nonCirc
+        });
+
+        bytes memory cd = abi.encode(token);
+        _setupMockPrecompile(HLConstants.TOKEN_SUPPLY_PRECOMPILE_ADDRESS, cd, abi.encode(expected));
+
+        (PrecompileLib.TokenSupply memory result, bool success) = PrecompileLib.tryTokenSupply(token, 50_000);
+        assertTrue(success);
+        assertEq(result.maxSupply, expected.maxSupply);
+        assertEq(result.nonCirculatingUserBalances.length, 1);
+    }
+
+    function test_tryTokenSupply_withGas_fail() public {
+        uint64 token = 1;
+        bytes memory cd = abi.encode(token);
+        _setupFailingPrecompile(HLConstants.TOKEN_SUPPLY_PRECOMPILE_ADDRESS, cd);
+
+        (PrecompileLib.TokenSupply memory result, bool success) = PrecompileLib.tryTokenSupply(token, 50_000);
+        assertFalse(success);
+        assertEq(result.maxSupply, 0);
+        assertEq(result.nonCirculatingUserBalances.length, 0);
+    }
+
+    function test_tokenSupply_withGas() public {
+        uint64 token = 1;
+        PrecompileLib.UserBalance[] memory nonCirc = new PrecompileLib.UserBalance[](0);
+        PrecompileLib.TokenSupply memory expected = PrecompileLib.TokenSupply({
+            maxSupply: 21_000_000,
+            totalSupply: 19_000_000,
+            circulatingSupply: 18_000_000,
+            futureEmissions: 2_000_000,
+            nonCirculatingUserBalances: nonCirc
+        });
+
+        bytes memory cd = abi.encode(token);
+        _setupMockPrecompile(HLConstants.TOKEN_SUPPLY_PRECOMPILE_ADDRESS, cd, abi.encode(expected));
+
+        PrecompileLib.TokenSupply memory result = PrecompileLib.tokenSupply(token, 50_000);
+        assertEq(result.maxSupply, expected.maxSupply);
+    }
 }

@@ -18,8 +18,11 @@ import {HLConstants} from "./common/HLConstants.sol";
  *  fixed-output reader caps its staticcall at the matching `HLConstants.*_GAS`
  *  constant (~20% above the formula) to prevent runaway gas burn when a precompile
  *  reverts or is unavailable. Dynamic-output readers (`delegations`, `perpAssetInfo`,
- *  `spotInfo`, `tokenInfo`, `tokenSupply`) forward all available gas because their
- *  return size depends on chain state and cannot be bounded statically.
+ *  `spotInfo`, `tokenInfo`, `tokenSupply`) cannot be bounded statically because
+ *  their return size depends on chain state. Each dynamic-output reader exposes a
+ *  `(args, uint256 gas)` overload so callers can pass an explicit cap; the default
+ *  no-cap overload forwards `gasleft()` (i.e. all remaining gas, subject to the
+ *  EVM's 63/64 rule).
  */
 library PrecompileLib {
     // Onchain record of token indices for each linked evm contract
@@ -351,14 +354,30 @@ library PrecompileLib {
      *  dynamic — this precompile is not gas-capped.
      */
     function delegations(address user) internal view returns (Delegation[] memory) {
-        (Delegation[] memory result, bool success) = tryDelegations(user);
+        return delegations(user, gasleft());
+    }
+
+    /// @notice Gas-capped overload. `gas` bounds the precompile staticcall.
+    function delegations(address user, uint256 gas) internal view returns (Delegation[] memory) {
+        (Delegation[] memory result, bool success) = tryDelegations(user, gas);
         if (!success) revert PrecompileLib__DelegationsPrecompileFailed();
         return result;
     }
 
     /// @notice Non-reverting version of `delegations`. Returns empty array on failure.
     function tryDelegations(address user) internal view returns (Delegation[] memory result, bool success) {
-        (bool _success, bytes memory _result) = HLConstants.DELEGATIONS_PRECOMPILE_ADDRESS.staticcall(abi.encode(user));
+        return tryDelegations(user, gasleft());
+    }
+
+    /// @notice Gas-capped overload of `tryDelegations`. `gas` bounds the precompile staticcall.
+    function tryDelegations(address user, uint256 gas)
+        internal
+        view
+        returns (Delegation[] memory result, bool success)
+    {
+        (bool _success, bytes memory _result) = HLConstants.DELEGATIONS_PRECOMPILE_ADDRESS.staticcall{gas: gas}(
+            abi.encode(user)
+        );
         if (!_success) return (result, false);
         return (abi.decode(_result, (Delegation[])), true);
     }
@@ -472,15 +491,29 @@ library PrecompileLib {
      *  Output is dynamic length (string field) — this precompile is not gas-capped.
      */
     function perpAssetInfo(uint32 perp) internal view returns (PerpAssetInfo memory) {
-        (PerpAssetInfo memory result, bool success) = tryPerpAssetInfo(perp);
+        return perpAssetInfo(perp, gasleft());
+    }
+
+    /// @notice Gas-capped overload. `gas` bounds the precompile staticcall.
+    function perpAssetInfo(uint32 perp, uint256 gas) internal view returns (PerpAssetInfo memory) {
+        (PerpAssetInfo memory result, bool success) = tryPerpAssetInfo(perp, gas);
         if (!success) revert PrecompileLib__PerpAssetInfoPrecompileFailed();
         return result;
     }
 
     /// @notice Non-reverting version of `perpAssetInfo`. Returns zero-initialized struct on failure.
     function tryPerpAssetInfo(uint32 perp) internal view returns (PerpAssetInfo memory result, bool success) {
+        return tryPerpAssetInfo(perp, gasleft());
+    }
+
+    /// @notice Gas-capped overload of `tryPerpAssetInfo`. `gas` bounds the precompile staticcall.
+    function tryPerpAssetInfo(uint32 perp, uint256 gas)
+        internal
+        view
+        returns (PerpAssetInfo memory result, bool success)
+    {
         (bool _success, bytes memory _result) =
-            HLConstants.PERP_ASSET_INFO_PRECOMPILE_ADDRESS.staticcall(abi.encode(perp));
+            HLConstants.PERP_ASSET_INFO_PRECOMPILE_ADDRESS.staticcall{gas: gas}(abi.encode(perp));
         if (!_success) return (result, false);
         return (abi.decode(_result, (PerpAssetInfo)), true);
     }
@@ -495,15 +528,25 @@ library PrecompileLib {
      *  resolve indices automatically. Output is dynamic length — not gas-capped.
      */
     function spotInfo(uint64 spotIndex) internal view returns (SpotInfo memory) {
-        (SpotInfo memory result, bool success) = trySpotInfo(spotIndex);
+        return spotInfo(spotIndex, gasleft());
+    }
+
+    /// @notice Gas-capped overload. `gas` bounds the precompile staticcall.
+    function spotInfo(uint64 spotIndex, uint256 gas) internal view returns (SpotInfo memory) {
+        (SpotInfo memory result, bool success) = trySpotInfo(spotIndex, gas);
         if (!success) revert PrecompileLib__SpotInfoPrecompileFailed();
         return result;
     }
 
     /// @notice Non-reverting version of `spotInfo`. Returns zero-initialized struct on failure.
     function trySpotInfo(uint64 spotIndex) internal view returns (SpotInfo memory result, bool success) {
+        return trySpotInfo(spotIndex, gasleft());
+    }
+
+    /// @notice Gas-capped overload of `trySpotInfo`. `gas` bounds the precompile staticcall.
+    function trySpotInfo(uint64 spotIndex, uint256 gas) internal view returns (SpotInfo memory result, bool success) {
         (bool _success, bytes memory _result) =
-            HLConstants.SPOT_INFO_PRECOMPILE_ADDRESS.staticcall(abi.encode(spotIndex));
+            HLConstants.SPOT_INFO_PRECOMPILE_ADDRESS.staticcall{gas: gas}(abi.encode(spotIndex));
         if (!_success) return (result, false);
         return (abi.decode(_result, (SpotInfo)), true);
     }
@@ -526,14 +569,25 @@ library PrecompileLib {
      *  Output is dynamic length — not gas-capped.
      */
     function tokenInfo(uint64 token) internal view returns (TokenInfo memory) {
-        (TokenInfo memory result, bool success) = tryTokenInfo(token);
+        return tokenInfo(token, gasleft());
+    }
+
+    /// @notice Gas-capped overload. `gas` bounds the precompile staticcall.
+    function tokenInfo(uint64 token, uint256 gas) internal view returns (TokenInfo memory) {
+        (TokenInfo memory result, bool success) = tryTokenInfo(token, gas);
         if (!success) revert PrecompileLib__TokenInfoPrecompileFailed();
         return result;
     }
 
     /// @notice Non-reverting version of `tokenInfo`. Returns zero-initialized struct on failure.
     function tryTokenInfo(uint64 token) internal view returns (TokenInfo memory result, bool success) {
-        (bool _success, bytes memory _result) = HLConstants.TOKEN_INFO_PRECOMPILE_ADDRESS.staticcall(abi.encode(token));
+        return tryTokenInfo(token, gasleft());
+    }
+
+    /// @notice Gas-capped overload of `tryTokenInfo`. `gas` bounds the precompile staticcall.
+    function tryTokenInfo(uint64 token, uint256 gas) internal view returns (TokenInfo memory result, bool success) {
+        (bool _success, bytes memory _result) =
+            HLConstants.TOKEN_INFO_PRECOMPILE_ADDRESS.staticcall{gas: gas}(abi.encode(token));
         if (!_success) return (result, false);
         return (abi.decode(_result, (TokenInfo)), true);
     }
@@ -548,15 +602,25 @@ library PrecompileLib {
      *  balances are excluded from circulating supply. Output is dynamic length — not gas-capped.
      */
     function tokenSupply(uint64 token) internal view returns (TokenSupply memory) {
-        (TokenSupply memory result, bool success) = tryTokenSupply(token);
+        return tokenSupply(token, gasleft());
+    }
+
+    /// @notice Gas-capped overload. `gas` bounds the precompile staticcall.
+    function tokenSupply(uint64 token, uint256 gas) internal view returns (TokenSupply memory) {
+        (TokenSupply memory result, bool success) = tryTokenSupply(token, gas);
         if (!success) revert PrecompileLib__TokenSupplyPrecompileFailed();
         return result;
     }
 
     /// @notice Non-reverting version of `tokenSupply`. Returns zero-initialized struct on failure.
     function tryTokenSupply(uint64 token) internal view returns (TokenSupply memory result, bool success) {
+        return tryTokenSupply(token, gasleft());
+    }
+
+    /// @notice Gas-capped overload of `tryTokenSupply`. `gas` bounds the precompile staticcall.
+    function tryTokenSupply(uint64 token, uint256 gas) internal view returns (TokenSupply memory result, bool success) {
         (bool _success, bytes memory _result) =
-            HLConstants.TOKEN_SUPPLY_PRECOMPILE_ADDRESS.staticcall(abi.encode(token));
+            HLConstants.TOKEN_SUPPLY_PRECOMPILE_ADDRESS.staticcall{gas: gas}(abi.encode(token));
         if (!_success) return (result, false);
         return (abi.decode(_result, (TokenSupply)), true);
     }
